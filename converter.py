@@ -12,7 +12,7 @@ class LLMHanjaConverter:
     def convert(self, text):
         tokens = self.tokenize(text)
 
-        self.messages = self.messages[-1000:]
+        self.messages = self.messages[-100:]
 
         result = []
         for start, surface, pos in tokens:

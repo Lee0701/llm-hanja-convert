@@ -29,6 +29,8 @@ def gen_response(model, messages) -> str:
             if chunk.message.content is not None:
                 content += chunk.message.content
         print('\n')
+    except KeyboardInterrupt:
+        raise
     except:
         return None
     return content
