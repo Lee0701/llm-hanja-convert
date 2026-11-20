@@ -21,7 +21,8 @@ def main():
             fout.flush()
             lines += 1
             if lines % 100 == 0:
-                print(f'Processed {lines} lines')
+                print(f'=== Processed {lines} lines ===')
+                print()
 
 def load_hanja_dict():
     with open('4888.txt', 'r') as f:
@@ -51,7 +52,7 @@ def convert(tagger, model, dictionary, text):
         if pos[0] == 'N':
             end = start + len(surface)
             marked_text = text[:start] + f'**{surface}**' + text[end:]
-            candidates = [surface] + dictionary.get(surface, [])
+            candidates = dictionary.get(surface, []) + [surface]
             if len(candidates) == 1:
                 result.append(surface)
             else:
