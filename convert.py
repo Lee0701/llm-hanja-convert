@@ -1,6 +1,6 @@
 import argparse
+import mecab_ko as MeCab
 from ollama import chat
-from ollama import ChatResponse
 
 def main():
     parser = argparse.ArgumentParser()
@@ -9,23 +9,84 @@ def main():
     parser.add_argument('--output', type=str, required=True)
     args = parser.parse_args()
 
-    messages = reset_context(args.model)
+    tagger = MeCab.Tagger()
+    hanja_dict = load_hanja_dict()
 
     with open(args.input, 'r') as fin, open(args.output, 'w') as fout:
         lines = 0
         for line in fin:
             line = line[:-1]
-            messages.append({
-                'role': 'user',
-                'content': line,
-            })
-            response = gen_response(args.model, messages)
-            fout.write(response + '\n')
+            result = convert(tagger, args.model, hanja_dict, line)
+            fout.write(result + '\n')
             fout.flush()
             lines += 1
             if lines % 100 == 0:
                 print(f'Processed {lines} lines')
-                messages = reset_context(args.model)
+
+def load_hanja_dict():
+    with open('4888.txt', 'r') as f:
+        hanja_list = set(f.read())
+    result = dict()
+    with open('hanja.txt', 'r') as f:
+        for line in f:
+            if line[0] == '#':
+                continue
+            line = line[:-1]
+            tokens = line.split(':')
+            if len(tokens) != 3:
+                continue
+            hangul, hanja, extra = tokens
+            if hangul not in result:
+                result[hangul] = []
+            if len(hangul) == 1 and hanja not in hanja_list:
+                continue
+            result[hangul].append(hanja)
+    return result
+
+def convert(tagger, model, dictionary, text):
+    tokens = tokenize(tagger, text)
+    messages = reset_context(model)
+    result = []
+    for start, surface, pos in tokens:
+        if pos[0] == 'N':
+            end = start + len(surface)
+            marked_text = text[:start] + f'**{surface}**' + text[end:]
+            candidates = [surface] + dictionary.get(surface, [])
+            if len(candidates) == 1:
+                result.append(surface)
+            else:
+                input_text = marked_text + '\n' + ' '.join(candidates)
+                converted = convert_token(model, messages, input_text)
+                result.append(converted)
+        else:
+            result.append(surface)
+    return ''.join(result)
+
+def convert_token(model, messages, text):
+    messages.append({
+        'role': 'user',
+        'content': text,
+    })
+    result = gen_response(model, messages)
+    return result
+
+def tokenize(tagger, text):
+    spaces = [i for i, c in enumerate(text) if c == ' ']
+    tokens = tagger.parse(text).split('\n')
+    result = []
+    length = 0
+    for token in tokens:
+        if length in spaces:
+            result.append([length, ' ', '_'])
+            length += 1
+        if '\t' not in token:
+            continue
+        surface, features = token.split('\t')
+        features = features.split(',')
+        pos = features[0]
+        result.append([length, surface, pos])
+        length += len(surface)
+    return result
 
 def reset_context(model):
     with open('system_prompt.md', 'r') as f:
