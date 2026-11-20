@@ -12,7 +12,7 @@ class LLMHanjaConverter:
     def convert(self, text):
         tokens = self.tokenize(text)
 
-        self.messages = self.messages[:1000]
+        self.messages = self.messages[-1000:]
 
         result = []
         for start, surface, pos in tokens:
@@ -35,21 +35,22 @@ class LLMHanjaConverter:
 
     def select_candidate(self, marked_text, candidates):
         text = marked_text + '\n' + ' '.join(candidates)
-        new_message = {
-            'role': 'user',
-            'content': text,
-        }
 
         result = ''
         while len(result) != len(candidates[-1]):
-            messages = self.system_messages + self.messages + [new_message]
+            self.messages.append({
+                'role': 'user',
+                'content': text,
+            })
+            messages = self.system_messages + self.messages
             result = gen_response(self.model, messages)
+            if result is None:
+                result = ''
+            self.messages.append({
+                'role': 'assistant',
+                'content': result,
+            })
 
-        self.messages.append(new_message)
-        self.messages.append({
-            'role': 'assistant',
-            'content': result,
-        })
         return result
 
     def tokenize(self, text):
