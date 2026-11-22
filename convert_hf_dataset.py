@@ -1,5 +1,5 @@
 import argparse
-from converter import LLMHanjaConverter
+from batch_converter import BatchLLMHanjaConverter
 from datasets import load_dataset
 import json
 
@@ -11,7 +11,7 @@ def main():
     parser.add_argument('--output', type=str, required=True)
     args = parser.parse_args()
 
-    converter = LLMHanjaConverter(args.model)
+    converter = BatchLLMHanjaConverter(args.model)
 
     ds = load_dataset(args.dataset, streaming=True)
 
